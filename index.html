@@ -1,0 +1,266 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>GeoAI Urban Mapping Platform</title>
+  <meta name="description" content="Transforming multi-source geospatial data into intelligent urban insights: GIS, remote sensing and GeoAI in one interactive web platform." />
+  <link rel="icon" href="assets/logo.svg" type="image/svg+xml" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700&family=Source+Sans+3:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.css" />
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <a class="brand" href="#home" data-nav="home">
+      <img src="assets/logo.svg" alt="" width="44" height="44" />
+      <span>
+        <strong>GeoAI Urban Mapping Platform</strong>
+        <small>Transforming geospatial data into intelligent urban insights</small>
+      </span>
+    </a>
+    <button class="nav-toggle" aria-expanded="false" aria-controls="site-nav">Menu</button>
+    <nav id="site-nav" class="site-nav" aria-label="Main">
+      <a href="#home" data-nav="home">Home</a>
+      <a href="#platform" data-nav="platform">Analytics Platform</a>
+      <a href="#methodology" data-nav="methodology">Methodology</a>
+    </nav>
+  </header>
+
+  <main id="main">
+    <!-- ============================== HOME ============================== -->
+    <section class="view" id="view-home" data-view="home">
+      <div class="hero">
+        <canvas id="hero-canvas" aria-hidden="true"></canvas>
+        <div class="hero-inner">
+          <h1>GeoAI Urban Mapping Platform</h1>
+          <p class="hero-sub">Transforming geospatial data into intelligent urban insights</p>
+          <p class="hero-text">A scalable geospatial platform that combines GIS, remote sensing and geospatial artificial intelligence to turn scattered, multi-source spatial data into decision-ready maps, indicators and reports.</p>
+          <div class="hero-actions">
+            <a class="btn btn-primary" href="#platform" data-nav="platform">Open the analytics platform</a>
+            <a class="btn btn-ghost" href="#methodology" data-nav="methodology">Read the methodology</a>
+          </div>
+          <ul class="capabilities">
+            <li><span class="cap-icon"><svg viewBox="0 0 24 24"><path d="M3 7l9-4 9 4-9 4-9-4z M3 12l9 4 9-4 M3 17l9 4 9-4"/></svg></span>Multi-source geospatial data</li>
+            <li><span class="cap-icon cap-text">AI</span>GeoAI &amp; machine learning</li>
+            <li><span class="cap-icon"><svg viewBox="0 0 24 24"><path d="M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z"/></svg></span>Urban analysis &amp; decision support</li>
+            <li><span class="cap-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M4 12h16M12 4c3 3 3 13 0 16M12 4c-3 3-3 13 0 16"/></svg></span>Scalable to any city or region</li>
+          </ul>
+        </div>
+        <p class="hero-caption">Live preview: a 250 m analysis grid being classified into low, medium and high built-up intensity.</p>
+      </div>
+
+      <div class="home-body">
+        <div class="intro-grid">
+          <article class="panel">
+            <h2><svg class="h-icon" viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="12" rx="1" transform="skewX(-8)"/></svg>What is this platform?</h2>
+            <p>The GeoAI Urban Mapping Platform is an interactive geospatial framework that turns multi-source geospatial data into detailed urban information. It analyses buildings, road networks, urban services and environmental indicators to classify built-up intensity, monitor urban patterns and generate decision-ready maps and statistics.</p>
+          </article>
+          <article class="panel">
+            <h2><svg class="h-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M5.3 18.7l2.1-2.1M16.6 7.4l2.1-2.1"/></svg>Key features</h2>
+            <ul class="ticks">
+              <li>Automated multi-source data integration</li>
+              <li>30 urban and spatial indicators</li>
+              <li>Built-up intensity classification (low, medium, high)</li>
+              <li>Interactive web-based mapping</li>
+              <li>Statistics and analytical reports</li>
+              <li>Spatiotemporal change analysis</li>
+              <li>Scalable and applicable to any city or region</li>
+            </ul>
+          </article>
+          <article class="panel">
+            <h2><svg class="h-icon" viewBox="0 0 24 24"><path d="M4 20V8M9 20V4M14 20v-9M19 20V6M2 20h20"/></svg>Applications &amp; benefits</h2>
+            <ul class="ticks">
+              <li>Urban growth monitoring</li>
+              <li>Informal settlement analysis</li>
+              <li>Infrastructure and service planning</li>
+              <li>Environmental assessment</li>
+              <li>Support for decision-makers</li>
+              <li>Up-to-date geospatial information</li>
+              <li>Applicable to any city or region</li>
+            </ul>
+          </article>
+        </div>
+
+        <section class="flow-section" aria-labelledby="flow-title">
+          <h2 id="flow-title">From data to decision</h2>
+          <ol class="flow">
+            <li><b>Data</b><span>OSM, Overture Maps, Sentinel-2, Landsat, high-resolution imagery</span></li>
+            <li><b>Quality checks</b><span>Geometry repair, deduplication, completeness</span></li>
+            <li><b>GeoAI analysis</b><span>Pixel-based and machine-learning processing</span></li>
+            <li><b>Validation</b><span>Confusion matrix, precision, recall, F1-score</span></li>
+            <li><b>Indicators</b><span>30 measures per 250 m cell</span></li>
+            <li><b>Maps &amp; reports</b><span>Interactive map, CSV, GeoJSON, PDF</span></li>
+            <li><b>Decision support</b><span>Priorities backed by evidence</span></li>
+          </ol>
+        </section>
+
+        <section class="value-section">
+          <div>
+            <h2>What it changes</h2>
+            <p>Easier access to spatial information, less time spent processing it, and results delivered as maps and indicators that help people understand conditions on the ground, set priorities and act on evidence.</p>
+            <p class="muted">Workflow automation removes manual digitising, repetitive processing and switching between programs. Outputs open directly in ArcGIS and QGIS.</p>
+          </div>
+          <dl class="tech">
+            <dt>Built with</dt><dd>Python · JavaScript · HTML · CSS · Leaflet.js · Turf.js</dd>
+            <dt>Data sources</dt><dd>OpenStreetMap, Overture Maps, Sentinel-2 L2A, Landsat, user footprints</dd>
+            <dt>Outputs</dt><dd>Interactive maps, CSV, GeoJSON, PDF reports</dd>
+          </dl>
+        </section>
+      </div>
+    </section>
+
+    <!-- ============================== PLATFORM ============================== -->
+    <section class="view" id="view-platform" data-view="platform" hidden>
+      <div class="app">
+        <aside class="app-panel" aria-label="Analysis controls">
+          <div class="panel-scroll">
+            <section class="ctl">
+              <h2><span class="n">1</span>Area of interest</h2>
+              <form id="geocode-form" class="geocode" role="search">
+                <label for="geocode-q" class="sr-only">Find a place</label>
+                <input id="geocode-q" type="search" placeholder="Find a city or district" autocomplete="off" />
+                <button class="btn btn-small" type="submit">Go</button>
+              </form>
+              <div class="btn-row">
+                <button class="btn btn-small" id="draw-poly" type="button">Draw polygon</button>
+                <button class="btn btn-small" id="draw-rect" type="button">Draw rectangle</button>
+                <label class="btn btn-small file-btn">Upload GeoJSON<input type="file" id="aoi-file" accept=".geojson,.json" hidden /></label>
+              </div>
+              <p class="hint" id="aoi-info">Draw the study area on the map, or upload a boundary. Up to 60 km² runs in the browser; 2–15 km² gives the quickest results.</p>
+              <button class="link-btn" id="demo-aoi" type="button">Use an example area (central Riyadh)</button>
+            </section>
+
+            <section class="ctl">
+              <h2><span class="n">2</span>Settings</h2>
+              <label class="field">Analysis cell size
+                <select id="cell-size">
+                  <option value="100">100 m</option>
+                  <option value="250" selected>250 m (default)</option>
+                  <option value="500">500 m</option>
+                </select>
+              </label>
+              <label class="check"><input type="checkbox" id="opt-spectral" checked /> Sentinel-2 NDVI and NDBI <span class="muted">(last 12 months, cloud-masked)</span></label>
+              <label class="check"><input type="checkbox" id="opt-change" /> Change detection since</label>
+              <input type="date" id="baseline-date" value="2018-01-01" min="2008-01-01" disabled />
+              <details class="extra">
+                <summary>Add building footprints from another source</summary>
+                <p class="hint">GeoJSON polygons from Overture Maps, Microsoft or Google Open Buildings. They are fused with OpenStreetMap and duplicates are removed. The <code>python/</code> pipeline can export Overture footprints for your area.</p>
+                <label class="field">Source name <input type="text" id="extra-name" value="Overture Maps" /></label>
+                <label class="btn btn-small file-btn">Choose GeoJSON<input type="file" id="extra-file" accept=".geojson,.json" hidden /></label>
+                <p class="hint" id="extra-info"></p>
+              </details>
+            </section>
+
+            <section class="ctl">
+              <h2><span class="n">3</span>Run</h2>
+              <button class="btn btn-primary btn-block" id="run" type="button" disabled>Run analysis</button>
+              <p class="status" id="status" role="status" aria-live="polite">Waiting for an area of interest.</p>
+              <ol class="steps" id="steps"></ol>
+            </section>
+
+            <section class="results" id="results" hidden>
+              <div class="tabs" role="tablist">
+                <button role="tab" aria-selected="true" data-tab="overview">Overview</button>
+                <button role="tab" data-tab="indicators">Indicators</button>
+                <button role="tab" data-tab="model">Model</button>
+                <button role="tab" data-tab="quality">Quality</button>
+                <button role="tab" data-tab="change">Change</button>
+                <button role="tab" data-tab="export">Export</button>
+              </div>
+              <div class="tab-body" id="tab-overview"></div>
+              <div class="tab-body" id="tab-indicators" hidden></div>
+              <div class="tab-body" id="tab-model" hidden></div>
+              <div class="tab-body" id="tab-quality" hidden></div>
+              <div class="tab-body" id="tab-change" hidden></div>
+              <div class="tab-body" id="tab-export" hidden></div>
+            </section>
+          </div>
+        </aside>
+        <div class="app-map">
+          <div id="map" aria-label="Interactive map"></div>
+          <div class="map-mode" id="map-mode" hidden>
+            <label for="mode-select">Show</label>
+            <select id="mode-select">
+              <option value="class">Built-up intensity</option>
+              <option value="prob">Prediction confidence</option>
+              <option value="indicator">Selected indicator</option>
+              <option value="change">Change since baseline</option>
+              <option value="labels">Training labels</option>
+            </select>
+          </div>
+          <div class="legend" id="legend" hidden></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================== METHODOLOGY ============================== -->
+    <section class="view" id="view-methodology" data-view="methodology" hidden>
+      <div class="doc">
+        <h1>Methodology</h1>
+        <p class="lead">Every analysis follows the same fifteen-step workflow, from the boundary you draw to the indicators a decision-maker reads. Each step below is implemented in the web platform; the Python pipeline in the repository runs the same steps at regional scale.</p>
+
+        <div class="workflow" aria-label="Methodological workflow">
+          <span>AOI</span><span>Data acquisition</span><span>Mosaicking</span><span>Pre-processing</span><span>Data fusion &amp; deduplication</span><span>Road &amp; spectral analysis</span><span>250 m grid</span><span>30 indicators</span><span>Ground truth</span><span>Training &amp; validation</span><span>GeoAI prediction</span><span>Change detection</span><span>Interactive map</span><span>Export</span><span>Decision support</span>
+        </div>
+
+        <ol class="method">
+          <li><h3>Area of interest (AOI)</h3><p>The user defines the study area directly on the interactive map. The AOI becomes the spatial boundary for data acquisition, processing, analysis and prediction. Using the actual polygon rather than only its bounding box prevents areas outside the study boundary from biasing area, density and coverage calculations.</p></li>
+          <li><h3>Multi-source data acquisition</h3><p>The platform integrates Sentinel-2 imagery, high-resolution imagery when available, OpenStreetMap, Overture Maps building footprints, road networks and supporting layers. Multi-source integration reduces dependence on a single dataset and improves completeness across different locations. In the browser, OpenStreetMap is queried live through the Overpass API, including historical snapshots.</p></li>
+          <li><h3>Satellite image selection &amp; mosaicking</h3><p>Sentinel-2 L2A scenes are selected by time period, spatial coverage and cloud cover from the Earth Search STAC catalogue. When the AOI spans more than one scene, the least cloudy valid pixel is taken at each location, giving continuous coverage for consistent indicators and temporal analysis.</p></li>
+          <li><h3>Geospatial data pre-processing</h3><p>Inputs are clipped to the AOI, coordinates are harmonised, clouds and shadows are masked using the scene classification layer, and geometries are validated: rings are closed, repeated vertices removed and self-intersecting footprints repaired. This stops inconsistencies in the source data from propagating into the GeoAI analysis.</p></li>
+          <li><h3>Building data fusion &amp; deduplication</h3><p>Footprints from multiple sources are fused, and spatial and geometric relationships are used to identify duplicates: two footprints match when their intersection over union is at least 0.5, or when one sits inside the other and covers most of it. Deduplication happens before feature extraction because duplicates inflate building counts, density, built-up area and coverage.</p></li>
+          <li><h3>Road network processing</h3><p>Roads within the AOI are processed into road length, road density, junctions, the share of major roads and distance to the nearest major road. Roads complement building morphology by describing accessibility and the structure of the urban fabric.</p></li>
+          <li><h3>Spectral analysis</h3><p>Spectral indices such as NDVI and NDBI are derived from the red, near-infrared and short-wave infrared bands. Building vectors describe urban geometry, while spectral information adds evidence about vegetation, built-up surfaces and land cover.</p></li>
+          <li><h3>Spatial grid generation</h3><p>The AOI is divided into regular 250 × 250 m analysis cells aligned to a fixed origin, so the same place always falls in the same cell across runs and dates. A consistent grid gives comparable spatial units while balancing local detail and computational efficiency. The cell size can be changed to 100 m or 500 m.</p></li>
+          <li><h3>Feature engineering</h3><p>Thirty urban and geospatial indicators are calculated for every cell, covering building morphology, density, coverage, roads, spatial distribution, services, vegetation, water and spectral response. They turn heterogeneous GIS and remote-sensing data into structured machine-learning features.</p></li>
+          <li><h3>Ground truth &amp; training data</h3><p>Representative cells receive reference labels of low, medium or high built-up intensity. Initial labels are generated automatically from coverage, building density, floor area ratio and road density, keeping only the clearest cells. They are a starting point, not final ground truth: users review them on the map and can relabel any cell before retraining.</p></li>
+          <li><h3>Random Forest training &amp; validation</h3><p>A Random Forest of 100 trees is trained on the engineered indicators, with a stratified 70/30 split held back for validation. Performance is reported with a confusion matrix, overall accuracy, Cohen's kappa, and precision, recall and F1-score per class. Random Forest suits structured geospatial variables, non-linear relationships and feature interactions.</p></li>
+          <li><h3>GeoAI spatial prediction</h3><p>The trained model is applied to every analysis cell to predict low, medium or high built-up intensity. The share of trees voting for the winning class is reported as a confidence value, turning machine-learning output into spatially explicit urban intelligence.</p></li>
+          <li><h3>Change detection</h3><p>The same grid and model are applied to an earlier snapshot of the data. Cells are marked as intensified, declined, stable or newly developed, alongside changes in building count, built-up area and road length.</p></li>
+          <li><h3>Interactive mapping &amp; export</h3><p>Results are explored as map layers: intensity, confidence, any of the 30 indicators, change and training labels. Everything can be exported as CSV and GeoJSON for ArcGIS and QGIS, and as a PDF report.</p></li>
+          <li><h3>Decision support</h3><p>The platform summarises where intensity is highest, where dense areas are far from health or education services, where growth is happening and where the source data looks incomplete, so priorities rest on evidence rather than assumption.</p></li>
+        </ol>
+
+        <h2>The 30 indicators</h2>
+        <div id="indicator-catalogue" class="catalogue"></div>
+
+        <h2>Limits worth knowing</h2>
+        <ul class="plain">
+          <li>Results are only as complete as the source data. Where OpenStreetMap is sparse, add footprints from another source; cells with roads but no buildings are flagged.</li>
+          <li>Automatic seed labels come from four of the indicators, so validation scores measure agreement with those rules until you add manual labels.</li>
+          <li>Building levels are often missing in OpenStreetMap; a single storey is assumed where none is recorded, which understates floor area ratio in tall districts.</li>
+          <li>Historical snapshots show what was mapped at that date, not necessarily what was built, so early dates can overstate growth.</li>
+        </ul>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <p>GeoAI Urban Mapping Platform · Map data © OpenStreetMap contributors (ODbL) · Contains modified Copernicus Sentinel data · Imagery © Esri</p>
+  </footer>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Turf.js/6.5.0/turf.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.9.2/proj4.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/geotiff@2.1.3/dist-browser/geotiff.js"></script>
+  <script src="js/config.js"></script>
+  <script src="js/geo.js"></script>
+  <script src="js/sources.js"></script>
+  <script src="js/quality.js"></script>
+  <script src="js/features.js"></script>
+  <script src="js/model.js"></script>
+  <script src="js/pipeline.js"></script>
+  <script src="js/report.js"></script>
+  <script src="js/hero.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
