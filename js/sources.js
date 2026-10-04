@@ -13,49 +13,84 @@
   const EDUCATION = new Set(['school', 'kindergarten', 'college', 'university', 'childcare']);
   const HEALTH = new Set(['hospital', 'clinic', 'doctors', 'pharmacy', 'dentist', 'health_post']);
 
-  function polyFilter(aoi) {
-    // Overpass poly filter wants "lat lon lat lon …"; simplify very detailed AOIs
-    let g = aoi.type === 'Feature' ? aoi : turf.feature(aoi);
-    let ring = g.geometry.type === 'Polygon' ? g.geometry.coordinates[0] : null;
-    if (!ring || ring.length > 200) {
-      g = turf.simplify(turf.convex(g) || g, { tolerance: 0.0005, highQuality: true });
-      ring = g.geometry.coordinates[0];
+  /* ---------------- Overpass: small split queries, tiling, retries ----------------
+   * Public Overpass servers answer 504/429 when a query is heavy or they are busy.
+   * To stay well under their limits the AOI bounding box is cut into tiles of at
+   * most ~2.5 × 2.5 km, each tile is asked three small questions (buildings, roads,
+   * services + land cover) and every request is retried across several mirrors
+   * with back-off. Results are merged and de-duplicated by OSM id; clipping to the
+   * exact AOI polygon happens later in pre-processing. */
+  const GROUPS = [
+    { name: 'buildings', body: (b) => `way["building"](${b});relation["building"]["type"="multipolygon"](${b});` },
+    { name: 'roads', body: (b) => `way["highway"~"^(${HIGHWAYS})$"](${b});` },
+    { name: 'services and land cover', body: (b) => `nwr["amenity"](${b});nwr["healthcare"](${b});node["shop"](${b});way["leisure"~"^(park|garden|nature_reserve|recreation_ground|golf_course)$"](${b});way["landuse"~"^(grass|forest|meadow|recreation_ground|village_green|orchard|farmland|cemetery|reservoir|basin)$"](${b});way["natural"~"^(wood|scrub|grassland|heath|water|wetland|beach)$"](${b});` }
+  ];
+
+  function buildQuery(bbox, group, date) {
+    const b = `${bbox[1].toFixed(6)},${bbox[0].toFixed(6)},${bbox[3].toFixed(6)},${bbox[2].toFixed(6)}`;
+    const settings = `[out:json][timeout:90][maxsize:268435456]` + (date ? `[date:"${date}T00:00:00Z"]` : '');
+    return `${settings};(${group.body(b)});out geom qt;`;
+  }
+
+  function tiles(aoi) {
+    const bb = turf.bbox(aoi);
+    const lat = (bb[1] + bb[3]) / 2;
+    const wKm = (bb[2] - bb[0]) * 111.32 * Math.cos((lat * Math.PI) / 180), hKm = (bb[3] - bb[1]) * 110.57;
+    const nx = Math.max(1, Math.ceil(wKm / 2.5)), ny = Math.max(1, Math.ceil(hKm / 2.5));
+    const out = [];
+    const aoiF = aoi.type === 'Feature' ? aoi : turf.feature(aoi);
+    for (let i = 0; i < nx; i++) for (let j = 0; j < ny; j++) {
+      const t = [bb[0] + ((bb[2] - bb[0]) * i) / nx, bb[1] + ((bb[3] - bb[1]) * j) / ny, bb[0] + ((bb[2] - bb[0]) * (i + 1)) / nx, bb[1] + ((bb[3] - bb[1]) * (j + 1)) / ny];
+      if (turf.booleanIntersects(turf.bboxPolygon(t), aoiF)) out.push(t); // skip tiles outside an irregular AOI
     }
-    return ring.map((c) => c[1].toFixed(6) + ' ' + c[0].toFixed(6)).join(' ');
+    return out;
   }
 
-  function buildQuery(aoi, date) {
-    const p = `(poly:"${polyFilter(aoi)}")`;
-    const settings = `[out:json][timeout:180][maxsize:1073741824]` + (date ? `[date:"${date}T00:00:00Z"]` : '');
-    return `${settings};
-(
-  way["building"]${p};
-  relation["building"]["type"="multipolygon"]${p};
-  way["highway"~"^(${HIGHWAYS})$"]${p};
-  nwr["amenity"]${p};
-  nwr["healthcare"]${p};
-  nwr["shop"]${p};
-  way["leisure"~"^(park|garden|nature_reserve|recreation_ground|golf_course)$"]${p};
-  way["landuse"~"^(grass|forest|meadow|recreation_ground|village_green|orchard|farmland|cemetery)$"]${p};
-  way["natural"~"^(wood|scrub|grassland|heath|water|wetland|beach)$"]${p};
-  way["landuse"~"^(reservoir|basin)$"]${p};
-);
-out geom;`;
-  }
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  let mirrorIndex = 0; // remember the last server that worked
 
-  async function overpass(query, onStatus) {
+  async function overpass(query, onStatus, label) {
+    const urls = C().overpass;
     let lastErr;
-    for (const url of C().overpass) {
+    for (let attempt = 0; attempt < urls.length * 2; attempt++) {
+      const url = urls[(mirrorIndex + attempt) % urls.length];
+      const host = new URL(url).host;
       try {
-        onStatus && onStatus('Querying ' + new URL(url).host + '…');
-        const res = await fetch(url, { method: 'POST', body: 'data=' + encodeURIComponent(query), headers: { 'Content-Type': 'application/x-www-form-urlencoded' } });
-        if (!res.ok) throw new Error('Overpass returned HTTP ' + res.status);
+        onStatus && onStatus(`${label} · ${host}${attempt ? ' (retry ' + attempt + ')' : ''}`);
+        const ctrl = new AbortController();
+        const timer = setTimeout(() => ctrl.abort(), 100000);
+        const res = await fetch(url, { method: 'POST', body: 'data=' + encodeURIComponent(query), headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, signal: ctrl.signal });
+        clearTimeout(timer);
+        if (!res.ok) throw new Error('HTTP ' + res.status + (res.status === 504 ? ' (server busy)' : res.status === 429 ? ' (rate limited)' : ''));
         const json = await res.json();
-        if (json.remark && /runtime error|timed out|out of memory/i.test(json.remark)) throw new Error(json.remark);
+        if (json.remark && /runtime error|timed out|out of memory/i.test(json.remark)) throw new Error(json.remark.slice(0, 120));
+        mirrorIndex = (mirrorIndex + attempt) % urls.length;
         return json;
-      } catch (e) { lastErr = e; }
+      } catch (e) {
+        lastErr = e.name === 'AbortError' ? new Error('request timed out') : e;
+        await sleep(Math.min(8000, 1500 * (attempt + 1)));
+      }
     }
-    throw new Error('All Overpass servers failed. Last error: ' + (lastErr && lastErr.message) + '. Try a smaller area or retry in a minute.');
+    throw new Error(`OpenStreetMap servers did not answer (${lastErr && lastErr.message}). They are often busy for a few minutes: try again shortly, draw a smaller area, or load your own data files under "Data source".`);
+  }
+
+  async function fetchOSMJson(aoi, date, onStatus) {
+    const ts = tiles(aoi);
+    const seen = new Set(), elements = [];
+    let n = 0;
+    for (const t of ts) {
+      for (const g of GROUPS) {
+        n++;
+        const label = `Downloading ${g.name}${ts.length > 1 ? ` (tile ${Math.ceil(n / GROUPS.length)} of ${ts.length})` : ''}${date ? ' for ' + date : ''}`;
+        const json = await overpass(buildQuery(t, g, date), onStatus, label);
+        for (const el of json.elements || []) {
+          const k = el.type + el.id;
+          if (seen.has(k)) continue;
+          seen.add(k); elements.push(el);
+        }
+      }
+    }
+    return { elements };
   }
 
   const closeRing = (r) => {
@@ -111,8 +146,63 @@ out geom;`;
   }
 
   async function fetchOSM(aoi, date, onStatus) {
-    const json = await overpass(buildQuery(aoi, date), onStatus);
-    return parseOSM(json);
+    return parseOSM(await fetchOSMJson(aoi, date, onStatus));
+  }
+
+  /* ---------------- User data files ----------------
+   * Accepts an Overpass JSON response, or GeoJSON with OSM-style tags (overpass-turbo
+   * export, QGIS QuickOSM, HOT Export Tool) or plain footprints (Overture, Microsoft,
+   * Google). Features are sorted into layers by their tags, or by geometry when untagged:
+   * untagged polygons are buildings, untagged lines are roads, untagged points are services. */
+  function parseUserData(json, sourceName) {
+    if (json && Array.isArray(json.elements)) return parseOSM(json);
+    const feats = json.type === 'FeatureCollection' ? json.features : json.type === 'Feature' ? [json] : [];
+    const out = { buildings: [], roads: [], amenities: [], green: [], water: [], raw: feats.length };
+    const key = (c) => c[0].toFixed(7) + ',' + c[1].toFixed(7);
+    let rid = 0;
+    for (const f of feats) {
+      if (!f || !f.geometry) continue;
+      const t = Object.assign({}, f.properties || {}, (f.properties && f.properties.tags) || {});
+      const gt = f.geometry.type;
+      const polys = gt === 'Polygon' ? [f.geometry.coordinates] : gt === 'MultiPolygon' ? f.geometry.coordinates : [];
+      const lines = gt === 'LineString' ? [f.geometry.coordinates] : gt === 'MultiLineString' ? f.geometry.coordinates : [];
+      const svc = t.amenity || t.healthcare || t.shop;
+      const isWater = t.natural === 'water' || t.natural === 'wetland' || t.landuse === 'reservoir' || t.landuse === 'basin' || t.waterway === 'riverbank';
+      const isGreen = !!((t.leisure && /park|garden|nature_reserve|recreation_ground|golf_course/.test(t.leisure)) || (t.landuse && /grass|forest|meadow|recreation_ground|village_green|orchard|farmland|cemetery/.test(t.landuse)) || (t.natural && /wood|scrub|grassland|heath|beach/.test(t.natural)));
+      if (svc || gt === 'Point' || gt === 'MultiPoint') {
+        const c = gt === 'Point' ? f.geometry.coordinates : turf.centroid(f).geometry.coordinates;
+        const a = t.amenity || '';
+        const cat = EDUCATION.has(a) ? 'education' : HEALTH.has(a) || t.healthcare ? 'health' : t.shop ? 'shop:' + t.shop : 'amenity:' + (a || t.category || t.class || 'other');
+        out.amenities.push({ type: 'Feature', properties: { category: cat, name: t.name || null, tag: a || t.healthcare || t.shop || t.category || '' }, geometry: { type: 'Point', coordinates: [c[0], c[1]] } });
+        if (!t.building || !polys.length) continue;
+      }
+      if (polys.length) {
+        for (const pc of polys) {
+          if (!pc[0] || pc[0].length < 4) continue;
+          const ring = closeRing(pc[0].map((c) => [c[0], c[1]]));
+          const feat = { type: 'Feature', properties: {}, geometry: { type: 'Polygon', coordinates: [ring] } };
+          if (isWater) out.water.push(Object.assign(feat, { properties: { kind: t.natural || t.landuse } }));
+          else if (isGreen && !t.building) out.green.push(Object.assign(feat, { properties: { kind: t.leisure || t.landuse || t.natural } }));
+          else if (t.building || !(t.landuse || t.leisure || t.natural || t.highway)) {
+            const lv = parseFloat(t['building:levels'] || t.num_floors || t.levels || (t.height ? t.height / 3.2 : '')) || null;
+            feat.properties = { source: sourceName, ext_id: t.id || t['@id'] || null, levels: lv, kind: t.building || t.class || 'building' };
+            out.buildings.push(feat);
+          }
+        }
+        continue;
+      }
+      for (const ln of lines) {
+        if (ln.length < 2) continue;
+        const hw = t.highway || t.class || t.fclass || 'road';
+        out.roads.push({ type: 'Feature', properties: { osm_id: 'u' + rid++, highway: hw, major: MAJOR.has(hw) || /^(motorway|trunk|primary|secondary)/.test(hw), name: t.name || null, nodes: ln.map(key) }, geometry: { type: 'LineString', coordinates: ln.map((c) => [c[0], c[1]]) } });
+      }
+    }
+    return out;
+  }
+
+  function mergeData(a, b) {
+    if (!a) return b;
+    return { buildings: a.buildings.concat(b.buildings), roads: a.roads.concat(b.roads), amenities: a.amenities.concat(b.amenities), green: a.green.concat(b.green), water: a.water.concat(b.water), raw: (a.raw || 0) + (b.raw || 0) };
   }
 
   /* Read a user-supplied GeoJSON of building footprints (Overture, MS, Google …) */
@@ -225,5 +315,5 @@ out geom;`;
     return sampler;
   }
 
-  GeoAI.Sources = { fetchOSM, parseOSM, buildQuery, parseBuildingUpload, loadSpectral, MAJOR };
+  GeoAI.Sources = { fetchOSM, fetchOSMJson, parseOSM, parseUserData, mergeData, buildQuery, tiles, parseBuildingUpload, loadSpectral, MAJOR };
 })(typeof window !== 'undefined' ? window : globalThis);

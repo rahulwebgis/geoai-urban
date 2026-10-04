@@ -29,11 +29,12 @@ Data → Quality checks → GeoAI analysis → Validation → Spatial indicators
 
 ## Using the analytics platform
 
-1. Search for a place, then draw a polygon or rectangle (or upload a GeoJSON boundary). 2–15 km² gives results in seconds; up to 60 km² runs in the browser.
-2. Choose the cell size (250 m by default), whether to add Sentinel-2 spectral indices, and optionally a baseline date for change detection.
-3. Optionally add building footprints from another source to fuse with OpenStreetMap.
-4. Run. Click any cell to see its 30 indicators and to relabel it; retrain the model with your labels from the **Model** tab.
-5. Export from the **Export** tab.
+1. Pick a data source: **Live OpenStreetMap**, **My data files** (GeoJSON or Overpass JSON — overpass-turbo, QGIS QuickOSM, HOT Export Tool, Overture or Microsoft footprints; add earlier files for change detection) or the synthetic **Example city**.
+2. Search for a place, then draw a polygon or rectangle (or upload a GeoJSON boundary). 2–15 km² gives results in seconds; up to 60 km² runs in the browser.
+3. Choose the cell size (250 m by default), whether to add Sentinel-2 spectral indices, and optionally a baseline date for change detection.
+4. Optionally add building footprints from another source to fuse with OpenStreetMap.
+5. Run. Click any cell to see its 30 indicators and to relabel it; retrain the model with your labels from the **Model** tab.
+6. Export from the **Export** tab.
 
 ## The 30 indicators
 
@@ -44,6 +45,14 @@ Data → Quality checks → GeoAI analysis → Validation → Spatial indicators
 | Road network | road length, road density, intersections, intersection density, major-road share, distance to major road |
 | Urban services | services and amenities, service diversity, distance to school, distance to health facility |
 | Environment & spectral | green space share, water share, mean NDVI, mean NDBI |
+
+### When OpenStreetMap servers are busy
+
+Live data comes from public Overpass servers, which answer *504 / 429* when overloaded. The platform keeps requests small (each area is cut into tiles of about 2.5 × 2.5 km and asked for buildings, roads and services separately), retries across four servers with back-off, and remembers the server that last worked. If they are all busy, wait a few minutes or switch to **My data files**: export the same area from [overpass-turbo](https://overpass-turbo.eu) as GeoJSON and load it.
+
+## GeoVision (single-file build)
+
+`tools/build_artifact.py` bundles the whole site into one HTML file that runs with no outside network access, using uploaded data files or the example city. This is the build published as the GeoVision app on Claude.
 
 ## Run locally
 
@@ -87,7 +96,8 @@ index.html            Home, Analytics Platform and Methodology pages
 css/style.css
 js/config.js          settings and the 30-indicator definitions
 js/geo.js             projections, spatial indexes, the 250 m grid
-js/sources.js         Overpass, uploaded footprints, Sentinel-2 (STAC + COG)
+js/sources.js         Overpass (tiled, retried), data files, Sentinel-2 (STAC + COG)
+js/sample.js          synthetic example city with two snapshots
 js/quality.js         validation, repair, fusion, deduplication
 js/features.js        indicator computation
 js/model.js           seed labels, Random Forest, metrics, change detection
@@ -97,6 +107,7 @@ js/app.js             interface and map
 js/hero.js            home page illustration
 python/               regional-scale pipeline
 examples/             sample AOI
+tools/build_artifact.py  single-file GeoVision build
 ```
 
 ## Limits worth knowing

@@ -120,8 +120,26 @@
       <div class="app">
         <aside class="app-panel" aria-label="Analysis controls">
           <div class="panel-scroll">
+            <section class="ctl" id="ctl-source">
+              <h2><span class="n">1</span>Data source</h2>
+              <div class="seg" role="radiogroup" aria-label="Data source">
+                <label id="src-live-opt"><input type="radio" name="src" value="live" checked /> Live OpenStreetMap</label>
+                <label><input type="radio" name="src" value="files" /> My data files</label>
+                <label><input type="radio" name="src" value="sample" /> Example city</label>
+              </div>
+              <p class="hint" id="src-live">Buildings, roads, services and land cover are downloaded for the area you draw. Large areas are fetched in tiles.</p>
+              <div id="src-files" hidden>
+                <p class="hint">GeoJSON or Overpass JSON with buildings, roads, services, green space and water, in one file or several. Exports from overpass-turbo, QGIS QuickOSM, the HOT Export Tool, Overture Maps and Microsoft or Google footprints all work. Untagged polygons are read as buildings and untagged lines as roads.</p>
+                <label class="btn btn-small file-btn">Add data files<input type="file" id="data-files" accept=".geojson,.json" multiple hidden /></label>
+                <p class="hint" id="data-info"></p>
+                <label class="btn btn-small file-btn">Add earlier data for change detection<input type="file" id="base-files" accept=".geojson,.json" multiple hidden /></label>
+                <p class="hint" id="base-info"></p>
+              </div>
+              <p class="hint" id="src-sample" hidden>A synthetic 9 km² city with a dense core, suburban growth, an informal-looking pocket, parks and a lake, plus an earlier snapshot for change detection. It is made-up data for trying the tool.</p>
+            </section>
+
             <section class="ctl">
-              <h2><span class="n">1</span>Area of interest</h2>
+              <h2><span class="n">2</span>Area of interest</h2>
               <form id="geocode-form" class="geocode" role="search">
                 <label for="geocode-q" class="sr-only">Find a place</label>
                 <input id="geocode-q" type="search" placeholder="Find a city or district" autocomplete="off" />
@@ -133,11 +151,11 @@
                 <label class="btn btn-small file-btn">Upload GeoJSON<input type="file" id="aoi-file" accept=".geojson,.json" hidden /></label>
               </div>
               <p class="hint" id="aoi-info">Draw the study area on the map, or upload a boundary. Up to 60 km² runs in the browser; 2–15 km² gives the quickest results.</p>
-              <button class="link-btn" id="demo-aoi" type="button">Use an example area (central Riyadh)</button>
+              <div class="btn-row"><button class="link-btn" id="demo-aoi" type="button">Use an example area (central Riyadh)</button><button class="link-btn" id="extent-aoi" type="button" hidden>Use the full extent of my data</button></div>
             </section>
 
             <section class="ctl">
-              <h2><span class="n">2</span>Settings</h2>
+              <h2><span class="n">3</span>Settings</h2>
               <label class="field">Analysis cell size
                 <select id="cell-size">
                   <option value="100">100 m</option>
@@ -145,8 +163,8 @@
                   <option value="500">500 m</option>
                 </select>
               </label>
-              <label class="check"><input type="checkbox" id="opt-spectral" checked /> Sentinel-2 NDVI and NDBI <span class="muted">(last 12 months, cloud-masked)</span></label>
-              <label class="check"><input type="checkbox" id="opt-change" /> Change detection since</label>
+              <label class="check" id="spectral-opt"><input type="checkbox" id="opt-spectral" checked /> Sentinel-2 NDVI and NDBI <span class="muted">(last 12 months, cloud-masked)</span></label>
+              <label class="check"><input type="checkbox" id="opt-change" /> <span id="change-label">Change detection since</span></label>
               <input type="date" id="baseline-date" value="2018-01-01" min="2008-01-01" disabled />
               <details class="extra">
                 <summary>Add building footprints from another source</summary>
@@ -158,7 +176,7 @@
             </section>
 
             <section class="ctl">
-              <h2><span class="n">3</span>Run</h2>
+              <h2><span class="n">4</span>Run</h2>
               <button class="btn btn-primary btn-block" id="run" type="button" disabled>Run analysis</button>
               <p class="status" id="status" role="status" aria-live="polite">Waiting for an area of interest.</p>
               <ol class="steps" id="steps"></ol>
@@ -260,6 +278,7 @@
   <script src="js/model.js"></script>
   <script src="js/pipeline.js"></script>
   <script src="js/report.js"></script>
+  <script src="js/sample.js"></script>
   <script src="js/hero.js"></script>
   <script src="js/app.js"></script>
 </body>

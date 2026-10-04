@@ -7,11 +7,12 @@
   const CLS = G.CONFIG.classes, CC = G.CONFIG.classColors;
   const IND = Object.fromEntries(G.INDICATORS.map((d) => [d.key, d]));
 
-  const app = { map: null, aoi: null, aoiLayer: null, state: null, layers: {}, mode: 'class', indicator: 'coverage_ratio', extra: null, charts: {}, heroShown: false };
+  const ARTIFACT = window.GEOAI_ENV === 'artifact'; // sandboxed build: no outside network
+  const app = { map: null, aoi: null, aoiLayer: null, state: null, layers: {}, mode: 'class', indicator: 'coverage_ratio', extra: null, charts: {}, heroShown: false, source: ARTIFACT ? 'sample' : 'live', userData: null, baseData: null };
 
   /* ============================== navigation ============================== */
   function route() {
-    const v = (location.hash || '#home').slice(1);
+    const v = (location.hash || (ARTIFACT ? '#platform' : '#home')).slice(1);
     if (!['home', 'platform', 'methodology'].includes(v)) { if (!$('.view:not([hidden])')) location.hash = '#home'; return; } // ignore '#close' etc.
     const view = v;
     $$('.view').forEach((s) => (s.hidden = s.dataset.view !== view));
@@ -19,7 +20,11 @@
     document.body.classList.toggle('on-platform', view === 'platform');
     $('#site-nav').classList.remove('open');
     $('.nav-toggle').setAttribute('aria-expanded', 'false');
-    if (view === 'platform') { initMap(); setTimeout(() => app.map.invalidateSize(), 50); }
+    if (view === 'platform') {
+      initMap();
+      if (ARTIFACT && !app.autoRan && app.source === 'sample') { app.autoRan = true; setTimeout(() => $('#run').click(), 300); } // open in a working state
+      setTimeout(() => { app.map.invalidateSize(); if (app.aoiLayer && !app.state) app.map.fitBounds(app.aoiLayer.getBounds(), { padding: [30, 30] }); }, 50);
+    }
     if (view === 'home' && !app.heroShown && window.GeoAIHero) { app.heroShown = true; window.GeoAIHero.replay(); }
     if (view !== 'platform') window.scrollTo(0, 0);
   }
@@ -42,8 +47,8 @@
     const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap contributors' });
     const light = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', { maxZoom: 20, attribution: '© OpenStreetMap contributors © CARTO' });
     const sat = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19, attribution: 'Imagery © Esri, Maxar, Earthstar Geographics' });
-    light.addTo(map);
-    app.baseLayers = { 'Light map': light, 'OpenStreetMap': osm, 'Satellite imagery': sat };
+    if (!ARTIFACT) light.addTo(map);
+    app.baseLayers = ARTIFACT ? {} : { 'Light map': light, 'OpenStreetMap': osm, 'Satellite imagery': sat };
     app.layerControl = L.control.layers(app.baseLayers, {}, { collapsed: true }).addTo(map);
     L.control.scale({ imperial: false }).addTo(map);
 
@@ -88,6 +93,68 @@
     $('#run').disabled = tooBig;
     if (!tooBig) status('Ready. Choose settings and run the analysis.');
   }
+
+  /* ---------------- data source ---------------- */
+  function setSource(src) {
+    if (app.source === 'sample' && src !== 'sample' && app.aoi) { app.aoi = null; app.drawn && app.drawn.clearLayers(); app.aoiLayer = null; $('#run').disabled = true; $('#aoi-info').textContent = 'Draw the study area on the map, or use the full extent of your data.'; }
+    app.source = src;
+    $$('input[name=src]').forEach((r) => (r.checked = r.value === src));
+    $('#src-live').hidden = src !== 'live';
+    $('#src-files').hidden = src !== 'files';
+    $('#src-sample').hidden = src !== 'sample';
+    $('#spectral-opt').hidden = ARTIFACT || src !== 'live';
+    $('#geocode-form').hidden = ARTIFACT;
+    $('#src-live-opt').hidden = ARTIFACT;
+    $('#demo-aoi').hidden = src !== 'live';
+    $('#extent-aoi').hidden = src !== 'files' || !app.userData;
+    $('#change-label').textContent = src === 'live' ? 'Change detection since' : 'Change detection against the earlier data, dated';
+    if (src === 'sample') {
+      initMap();
+      $('#opt-change').checked = true; $('#baseline-date').disabled = false; $('#baseline-date').value = '2018-01-01';
+      setAoi(G.Sample.aoi());
+      showDataPreview(G.Sample.current());
+    } else if (src === 'files' && app.userData) { showDataPreview(app.userData); }
+    else clearPreview();
+  }
+  $$('input[name=src]').forEach((r) => (r.onchange = () => setSource(r.value)));
+
+  function clearPreview() { if (app.preview) { app.map.removeLayer(app.preview); app.preview = null; } }
+  function showDataPreview(d) {
+    initMap(); clearPreview();
+    const feats = d.buildings.slice(0, 30000).concat(d.roads);
+    app.preview = L.geoJSON({ type: 'FeatureCollection', features: feats.map((f) => ({ type: 'Feature', properties: {}, geometry: f.geometry })) }, { style: (f) => (f.geometry.type === 'Polygon' ? { color: '#5A6B7F', weight: 0.4, fillColor: '#5A6B7F', fillOpacity: 0.35 } : { color: '#8FA6C2', weight: 1 }), interactive: false }).addTo(app.map);
+  }
+  function describe(d) { return `${d.buildings.length.toLocaleString()} buildings, ${d.roads.length.toLocaleString()} roads, ${d.amenities.length.toLocaleString()} services, ${(d.green.length + d.water.length).toLocaleString()} green and water areas`; }
+  async function readFiles(files) {
+    let data = null;
+    for (const f of files) data = G.Sources.mergeData(data, G.Sources.parseUserData(JSON.parse(await f.text()), f.name.replace(/\.(geo)?json$/i, '')));
+    return data;
+  }
+  $('#data-files').onchange = async (e) => {
+    const files = [...e.target.files]; if (!files.length) return;
+    try {
+      const d = await readFiles(files);
+      if (!d.buildings.length && !d.roads.length) throw new Error('no buildings or roads were found in the file');
+      app.userData = G.Sources.mergeData(app.userData, d);
+      $('#data-info').textContent = 'Loaded ' + describe(app.userData) + '.';
+      showDataPreview(app.userData);
+      $('#extent-aoi').hidden = false;
+      const ext = turf.bboxPolygon(turf.bbox(turf.featureCollection(app.userData.buildings.concat(app.userData.roads))));
+      if (!app.aoi || !turf.booleanIntersects(app.aoi, ext)) setAoi(ext); // the area must cover the data
+      else app.map.fitBounds(L.geoJSON(ext).getBounds(), { padding: [30, 30] });
+    } catch (err) { $('#data-info').textContent = 'Could not read that file: ' + err.message + '.'; }
+    e.target.value = '';
+  };
+  $('#base-files').onchange = async (e) => {
+    const files = [...e.target.files]; if (!files.length) return;
+    try {
+      app.baseData = G.Sources.mergeData(app.baseData, await readFiles(files));
+      $('#base-info').textContent = 'Earlier data: ' + describe(app.baseData) + '.';
+      $('#opt-change').checked = true; $('#baseline-date').disabled = false;
+    } catch (err) { $('#base-info').textContent = 'Could not read that file: ' + err.message + '.'; }
+    e.target.value = '';
+  };
+  $('#extent-aoi').onclick = () => app.userData && setAoi(turf.bboxPolygon(turf.bbox(turf.featureCollection(app.userData.buildings.concat(app.userData.roads)))));
 
   $('#demo-aoi').onclick = () => { initMap(); setAoi(turf.bboxPolygon([46.662, 24.682, 46.694, 24.708])); };
   $('#cell-size').onchange = () => app.aoi && setAoi(app.aoi, false);
@@ -136,12 +203,25 @@
     btn.disabled = true; btn.textContent = 'Running…';
     renderSteps(); $('#results').hidden = true;
     clearResultLayers();
+    const wantChange = $('#opt-change').checked;
     const opts = {
       cellSize: +$('#cell-size').value,
-      spectral: $('#opt-spectral').checked,
-      baselineDate: $('#opt-change').checked ? $('#baseline-date').value : null,
+      spectral: !ARTIFACT && app.source === 'live' && $('#opt-spectral').checked,
+      baselineDate: wantChange ? $('#baseline-date').value || 'earlier data' : null,
       extraSets: app.extra ? [app.extra] : []
     };
+    if (app.source === 'sample') {
+      opts.data = G.Sample.current();
+      if (wantChange) opts.baseData = G.Sample.baseline();
+    } else if (app.source === 'files') {
+      if (!app.userData) { status('Add your data files first, or switch the data source.', true); btn.disabled = false; btn.textContent = 'Run analysis'; return; }
+      opts.data = app.userData;
+      if (wantChange) {
+        if (!app.baseData) { status('Add earlier data files for change detection, or turn change detection off.', true); btn.disabled = false; btn.textContent = 'Run analysis'; return; }
+        opts.baseData = app.baseData;
+      }
+    }
+    clearPreview();
     try {
       const t0 = performance.now();
       app.state = await G.Pipeline.run(app.aoi, opts, { status, step });
@@ -398,10 +478,10 @@
 
   function renderChangeTab() {
     const st = app.state, ch = st.change;
-    if (!ch) { $('#tab-change').innerHTML = '<p class="hint">Turn on “Change detection since” and run again to compare with an earlier OpenStreetMap snapshot.</p>'; return; }
+    if (!ch) { $('#tab-change').innerHTML = '<p class="hint">Turn on change detection in Settings and run again to compare with an earlier snapshot.</p>'; return; }
     const t = ch.tally;
     $('#tab-change').innerHTML = `
-      <p>Compared with OpenStreetMap as it was on <b>${st.opts.baselineDate}</b>, using the same grid and model.</p>
+      <p>Compared with ${st.opts.data ? 'the earlier data' : 'OpenStreetMap as it was'} on <b>${st.opts.baselineDate}</b>, using the same grid and model.</p>
       <div class="kpis">
         <div class="kpi"><b>${t.intensified}</b><span>Cells intensified</span></div>
         <div class="kpi"><b>${t.new_development}</b><span>Newly developed</span></div>
@@ -428,20 +508,33 @@
         <button class="btn btn-small" data-x="metrics">Model metrics and quality report (JSON)</button>
         <button class="btn btn-small btn-primary" data-x="pdf">PDF report</button>
       </div>`;
-    $$('#tab-export [data-x]').forEach((b) => (b.onclick = () => {
+    const gj = ARTIFACT ? 'json' : 'geojson'; // the sandboxed viewer saves .json; GIS tools read it as GeoJSON
+    $$('#tab-export [data-x]').forEach((b) => (b.onclick = async () => {
       const st = app.state, R = G.Report;
       try {
         switch (b.dataset.x) {
-          case 'cells-geojson': R.download(`geoai_cells_${stamp}.geojson`, JSON.stringify(R.cellsGeoJSON(st)), 'application/geo+json'); break;
-          case 'cells-csv': R.download(`geoai_cells_${stamp}.csv`, R.cellsCSV(st), 'text/csv'); break;
-          case 'buildings': R.download(`geoai_buildings_${stamp}.geojson`, JSON.stringify(R.buildingsGeoJSON(st)), 'application/geo+json'); break;
-          case 'metrics': R.download(`geoai_metrics_${stamp}.json`, JSON.stringify(R.metricsJSON(st), null, 2), 'application/json'); break;
-          case 'pdf': R.pdf(st).save(`geoai_report_${stamp}.pdf`); break;
+          case 'cells-geojson': await saveFile(`geoai_cells_${stamp}.${gj}`, JSON.stringify(R.cellsGeoJSON(st)), 'application/geo+json'); break;
+          case 'cells-csv': await saveFile(`geoai_cells_${stamp}.csv`, R.cellsCSV(st), 'text/csv'); break;
+          case 'buildings': await saveFile(`geoai_buildings_${stamp}.${gj}`, JSON.stringify(R.buildingsGeoJSON(st)), 'application/geo+json'); break;
+          case 'metrics': await saveFile(`geoai_metrics_${stamp}.json`, JSON.stringify(R.metricsJSON(st), null, 2), 'application/json'); break;
+          case 'pdf': await saveFile(`geoai_report_${stamp}.pdf`, R.pdf(st).output('blob'), 'application/pdf'); break;
         }
-      } catch (e) { console.error(e); status('Export failed: ' + e.message, true); }
+      } catch (e) {
+        if (e && e.code === 'declined') return;
+        console.error(e); status('Export failed: ' + (e.message || e.code), true);
+      }
     }));
+  }
+
+  async function saveFile(name, data, type) {
+    if (!ARTIFACT) return G.Report.download(name, data instanceof Blob ? data : new Blob([data], { type }), type);
+    const dl = window.claude && window.claude.use ? await window.claude.use('downloads') : null;
+    if (!dl) throw new Error('saving files is not available in this view');
+    await dl.save({ filename: name, data });
+    status('Saved ' + name + '.');
   }
 
   window.GeoAIApp = app; // handy for debugging in the browser console
   route();
+  setSource(app.source);
 })();

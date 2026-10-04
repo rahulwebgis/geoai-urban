@@ -40,15 +40,18 @@
     const proj = GeoAI.Geo.localProjection(c[0], c[1]);
     const today = isoDate(new Date());
 
-    /* acquisition */
+    /* acquisition: live OpenStreetMap, or data the user loaded */
     step(1, 'active');
-    status('Downloading buildings, roads, services and land cover from OpenStreetMap…');
-    const osm = await GeoAI.Sources.fetchOSM(aoiF, null, status);
-    let osmBase = null;
-    if (opts.baselineDate) {
-      status('Downloading the OpenStreetMap snapshot for ' + opts.baselineDate + '…');
-      osmBase = await GeoAI.Sources.fetchOSM(aoiF, opts.baselineDate, status);
+    let osm, osmBase = null;
+    if (opts.data) {
+      osm = opts.data;
+      if (opts.baseData) osmBase = opts.baseData;
+    } else {
+      status('Downloading buildings, roads, services and land cover from OpenStreetMap…');
+      osm = await GeoAI.Sources.fetchOSM(aoiF, null, status);
+      if (opts.baselineDate) osmBase = await GeoAI.Sources.fetchOSM(aoiF, opts.baselineDate, status);
     }
+    if (!osm.buildings.length && !osm.roads.length) throw new Error('No buildings or roads were found inside this area. Check that the area covers your data.');
     step(1, 'done');
 
     /* spectral + mosaicking */
@@ -96,7 +99,7 @@
     let changeRes = null, base = null, cmp = null;
     if (osmBase) {
       step(11, 'active');
-      status('Comparing with ' + opts.baselineDate + '…');
+      status('Comparing with ' + (opts.baselineDate || 'the baseline data') + '…');
       base = await buildPeriod(aoiF, proj, grid, osmBase, [], spectralBase, status);
       GeoAI.Model.apply(result, base.cells);
       // compare like with like: if extra footprint sources were fused into the current period,
